@@ -1,0 +1,177 @@
+#Portfolio assignment 5
+####*Experimental Methods 3*
+**Helene Hauge Westerlund**  
+11/12 2017  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***   
+
+# Building on the shoulders of giants: meta-analysis
+
+## Questions to be answered
+
+1. What is the current evidence for distinctive patterns of pitch mean and pitch sd in schizophrenia?
+
+```{r}
+setwd("C:/Users/Helene/Documents/RStudio working directory/Experimental Methods 3/Assignment-5")
+Data = read.csv("C:/Users/Helene/Documents/RStudio working directory/Experimental Methods 3/Assignment-5/Data.csv", header=T, sep = ";")
+
+
+library(pacman); library(metafor)
+
+##MEAN
+#Escalc
+d_PitchMean = escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i= PitchMeanControls, m2i= PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = Data)
+
+#RMA
+m1 = rma(yi, vi, data=d_PitchMean, slab=Article)
+
+#Forest
+forest(m1)
+summary(m1)
+
+#-----------------------------------
+##SD
+#Escalc
+d_PitchSD = escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i= PitchSDControls, m2i= PitchSDSchizo, sd1i=PitchSDControlsSD, sd2i=PitchSDSchizoSD, data = Data)
+
+#RMA
+m2 = rma(yi, vi, data=d_PitchSD, slab=Article)
+
+#Forest
+forest(m2)
+summary(m2)
+
+```
+Report how many papers report quantitative estimates, your method to analyze them, the estimated effect size of the difference (mean effect size and standard error for pitch mean, same for pitch sd) and forest plots representing it. 
+
+***
+
+2. Do the results match your own analysis from Assignment 3? If you add your results to the meta-analysis, do the estimated effect sizes change? Report the new estimates and the new forest plots.
+
+shouldnt we also account for the analysis in assignment 3? we should extract the effect size from the analysis in assignment 3, and add this to the meta-analysis: simplest way to do this is standardise and scale data, and you can report the standardised beta as your yi, and vi is when you take variability of diagnosis and square that.
+        vi = SD2 (variance of cohen's d)
+        yi = standardised beta (Cohen's d)
+        
+```{r}
+#Loading in own study
+schizo_pitch_features = read.csv("schizo_pitch_features.csv")
+
+#Getting mean and sd for controls
+temp = subset(schizo_pitch_features,Diagnosis == "Control")
+mean(temp$meanv)
+mean(temp$sdv)
+
+#Getting sd of mean and sd for controls
+sd(temp$meanv)
+sd(temp$sdv)
+
+#Getting mean and sd for patients
+temp1 = subset(schizo_pitch_features,Diagnosis == "Schizophrenia")
+mean(temp1$meanv)
+mean(temp1$sdv)
+
+#Getting sd of mean and sd for patients
+sd(temp1$meanv)
+sd(temp1$sdv)
+
+#Creating a new df with all this beautiful info
+mydat = data.frame(Article = "my_data", Year = "2017", SampleSizeSchizo = 85, SampleSizeContros = 85, PitchMeanControls = 141.0266, PitchMeanControlsSD = 25.78532, PitchMeanSchizo = 149.0399, PitchMeanSchizoSD = 22.75408 , PitchSDControls = 49.09909, PitchSDControlsSD = 18.59616, PitchSDSchizo = 55.38506, PitchSDSchizoSD =32.83777)
+
+Final_data = rbind(Data, mydat)
+
+
+# #Running meta-analysis again
+
+##MEAN
+#Escalc
+d_PitchMean = escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i= PitchMeanControls, m2i= PitchMeanSchizo, sd1i=PitchMeanControlsSD, sd2i=PitchMeanSchizoSD, data = Final_data)
+
+#RMA
+m3 = rma(yi, vi, data=d_PitchMean, slab=Article)
+
+#Forest
+forest(m3)
+summary(m3)
+
+#-----------------------------------
+##SD
+#Escalc
+d_PitchSD = escalc('SMD', n1i= SampleSizeSchizo, n2i=SampleSizeContros, m1i= PitchSDControls, m2i= PitchSDSchizo, sd1i=PitchSDControlsSD, sd2i=PitchSDSchizoSD, data = Final_data)
+
+#RMA
+m4 = rma(yi, vi, data=d_PitchSD, slab=Article)
+
+#Forest
+forest(m4)
+summary(m4)
+
+```
+
+
+3. Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
+[Funnel plot: When all the points are on one side, it can be sign of publication bias, because all the points that have been close to or under 0 (often middle line) have been ignored. Points outside the triangle are outliers. Ideally you would have a triangle with points evenly distributed on both sides (but nothing is rarely ideal).]
+
+- Look at the output of rma() and check tau and I2
+```{r}
+#TAU^2: If tau^2>1, suggests a presence of substantial statistical heterogeneity.
+#Rma output for mean
+m3
+#tau^2 = 0.0403
+
+#Rma output for SD
+m4
+#tau^2 = 3.5084
+
+
+#INFLUENTIAL STUDIES
+inf_mean = influence(m3)
+print(inf_mean)
+plot(inf_mean)
+
+inf_sd = influence(m4)
+print(inf_sd)
+plot(inf_sd)
+
+#PUBLICATION BIAS
+#Rank correlation test
+ranktest(m3)
+ranktest(m4)
+
+#Funnel plots
+funnel(m3, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+funnel(m4, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+
+#Assessing symmetry of funnel plots
+regtest(m3,digits= 3)
+regtest(m4,digits= 3)
+```
+
+
+
+
+[NOTES:
+
+
+ESCALC('smd, n1i = sampleSeSchizo, ni1=, sc1i,
+
+n2i = SampleSeSchizo, ni2=, sc2i')
+
+
+lmer(ES~1 + (1|study), weights= 1/variance)
+
+
+lm(yi~1, weights=1/vi, data)
+
+
+lmer(yi~1 + (1|article) ((each article might be different from one another))
+
+
+m1 = RMA(yi, vi, data, slab-article)
+
+forest(m1) ((to get a forest plot))
+
+]
